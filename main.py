@@ -2,6 +2,22 @@ import os
 import pandas as pd
 import folium
 import webbrowser
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
+
+# Function to create a rainbow gradient color map and return unique colors based on the input number
+def create_rainbow_colormap(num_colors):
+    colors = [(1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1), (1, 0, 1)]
+    n = len(colors)
+    gradient = []
+    for i in range(n - 1):
+        for j in range(num_colors // n):
+            r = (colors[i][0] * (n - j - 1) + colors[i + 1][0] * j) / (n - 1)
+            g = (colors[i][1] * (n - j - 1) + colors[i + 1][1] * j) / (n - 1)
+            b = (colors[i][2] * (n - j - 1) + colors[i + 1][2] * j) / (n - 1)
+            gradient.append((r, g, b))
+    return LinearSegmentedColormap.from_list('rainbow', gradient, num_colors)
 
 
 # Function to read CSV files in a folder and plot GPS coordinates
@@ -22,7 +38,8 @@ def plot_gps_coordinates(folder_path):
     folium.TileLayer(tiles="OpenStreetMap").add_to(m)
 
     # List of available colors for different CSV files
-    colors = ['blue', 'green', 'red', 'purple', 'orange', 'pink', 'brown', 'gray']
+    num_files = len([filename for filename in os.listdir(folder_path) if filename.endswith('.csv')])
+    colormap = create_rainbow_colormap(num_files)
 
     # Iterate over CSV files in the folder
     for idx, filename in enumerate(os.listdir(folder_path)):
@@ -39,6 +56,13 @@ def plot_gps_coordinates(folder_path):
             final_coord = df['GPS'].iloc[-1]
             fg = folium.FeatureGroup(name=final_coord, overlay=True, control=True)
             coords = []
+
+            # Get a color from the colormap
+            color = colormap(idx)
+            r, g, b, a = color
+            color = f"rgba({r},{g},{b},{a})"
+            print(color)
+
             # Plot GPS coordinates as markers
             for index, row in df.iterrows():
                 lat, lon = row['GPS'].split()
@@ -48,8 +72,8 @@ def plot_gps_coordinates(folder_path):
                 folium.CircleMarker(
                     location=[lat, lon],
                     radius=5,
-                    # color=colors[idx % len(colors)],
-                    # fill_color=colors[idx % len(colors)],
+                    color=color,
+                    fill_color=color,
                     fill=True,
                     fill_opacity=0.7,
                     # popup=final_coord
@@ -58,7 +82,7 @@ def plot_gps_coordinates(folder_path):
             # Add a line connecting the points
             folium.PolyLine(
                 locations=coords,
-                # color=colors[idx % len(colors)],
+                color=color,
                 weight=2,
                 opacity=0.7,
             ).add_to(fg)
