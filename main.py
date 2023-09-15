@@ -35,7 +35,8 @@ def plot_gps_coordinates(folder_path):
             # Read the CSV file into a Pandas DataFrame
             df = pd.read_csv(file_path)
             df = df.dropna()
-            if len(df['GPS']) == 0:
+
+            if df['GPS'].dtype != object:
                 continue
 
             # Create a feature group for each CSV file
