@@ -3,7 +3,7 @@ import pandas as pd
 import folium
 import webbrowser
 import calculations
-from datetime import datetime
+from datetime import datetime, timedelta
 from statistics import mean
 
 
@@ -50,8 +50,8 @@ def plot_gps_coordinates(folder_path):
             home_lon = float(home_lon)
             prev_row = None
             coords = []
-            # change_in_distances = []
-            # change_in_times = []
+            change_in_distances = []
+            change_in_times = []
             speeds = []
             heights = []
             distances_to_home = []
@@ -63,8 +63,11 @@ def plot_gps_coordinates(folder_path):
                 lon = float(lon)
                 height = float(row['Alt(m)'])
                 time = datetime.strptime(row['Time'], '%H:%M:%S.%f')
+                dist_to_home = 0
+                velocity = 0
                 coords.append([lat, lon])
                 heights.append(height)
+
                 if prev_row is not None:
                     prev_lat, prev_lon = prev_row['GPS'].split()
                     prev_lat = float(prev_lat)
@@ -72,14 +75,14 @@ def plot_gps_coordinates(folder_path):
                     prev_height = float(prev_row['Alt(m)'])
                     prev_time = datetime.strptime(prev_row['Time'], '%H:%M:%S.%f')
                     time_diff = (time - prev_time).total_seconds()
-                    # change_in_times.append(time_diff)
+                    change_in_times.append(time_diff)
                     distance_diff = calculations.distance_calc(prev_lat,
                                                                prev_lon,
                                                                prev_height,
                                                                lat,
                                                                lon,
                                                                height)
-                    # change_in_distances.append(distance_diff)
+                    change_in_distances.append(distance_diff)
                     dist_to_home = calculations.distance_calc(home_lat,
                                                               home_lon,
                                                               0,
@@ -89,7 +92,14 @@ def plot_gps_coordinates(folder_path):
                     distances_to_home.append(dist_to_home)
                     velocity = distance_diff / time_diff
                     speeds.append(velocity * 3.6)
-
+                small_popup_html = "Coordinate: {lat} {lon}<br>" \
+                                   "Distance From Home: {dist_to_home:.2f}m<br>" \
+                                   "Height: {height:.2f}m<br>" \
+                                   "Velocity: {velocity:.2f}km/h".format(lat=lat,
+                                                                         lon=lon,
+                                                                         dist_to_home=dist_to_home,
+                                                                         height=height,
+                                                                         velocity=velocity * 3.6)
                 folium.CircleMarker(
                     location=[lat, lon],
                     radius=5,
@@ -97,7 +107,7 @@ def plot_gps_coordinates(folder_path):
                     # fill_color=colors[idx % len(colors)],
                     fill=True,
                     fill_opacity=0.7,
-                    # popup=final_coord
+                    tooltip=folium.Tooltip(small_popup_html)
                 ).add_to(fg)
                 prev_row = row
 
@@ -106,11 +116,11 @@ def plot_gps_coordinates(folder_path):
                 locations=coords,
                 # color=colors[idx % len(colors)],
                 weight=2,
-                opacity=0.7,
+                opacity=0.7
             ).add_to(fg)
 
             # Add a Marker for the last Coordinate
-            max_speed = avg_speed = max_height = max_dist_home = 0
+            max_speed = avg_speed = max_height = max_dist_home = tot_dist = tot_time = 0
             if speeds:
                 max_speed = max(speeds)
                 avg_speed = mean(speeds)
@@ -118,17 +128,26 @@ def plot_gps_coordinates(folder_path):
                 max_height = max(heights)
             if distances_to_home:
                 max_dist_home = max(distances_to_home)
+            if change_in_distances:
+                tot_dist = sum(change_in_distances)
+            if change_in_times:
+                secs = sum(change_in_times)
+                tot_time = timedelta(seconds=secs)
             popup_html = "File Name: {file}<br>" \
                          "Last Coordinate: {coord}<br>" \
                          "Max Speed: {max_speed:.2f}km/h<br>" \
                          "Avg Speed: {avg_speed:.2f}km/h<br>" \
                          "Max Height: {max_height:.2f}m<br>" \
-                         "Max Distance From Home: {max_dist_home:.2f}m".format(file=filename,
-                                                                               coord=final_coord,
-                                                                               max_speed=max_speed,
-                                                                               avg_speed=avg_speed,
-                                                                               max_height=max_height,
-                                                                               max_dist_home=max_dist_home)
+                         "Max Distance From Home: {max_dist_home:.2f}m<br>" \
+                         "Total Distance Flown: {tot_dist:.2f}m<br>" \
+                         "Total Flight Time: {tot_time}".format(file=filename,
+                                                                coord=final_coord,
+                                                                max_speed=max_speed,
+                                                                avg_speed=avg_speed,
+                                                                max_height=max_height,
+                                                                max_dist_home=max_dist_home,
+                                                                tot_dist=tot_dist,
+                                                                tot_time=tot_time)
             iframe = folium.IFrame(popup_html)
             folium.Marker(
                 location=final_coord.split(),
@@ -136,12 +155,10 @@ def plot_gps_coordinates(folder_path):
                                    min_width=300,
                                    max_width=300)
             ).add_to(fg)
-
             fg.add_to(m)
 
     # Add layer control to toggle CSV files on/off
     folium.LayerControl().add_to(m)
-
     # Save the map to an HTML file
     map_filename = 'gps_coordinates_map.html'
     m.save(os.path.join(folder_path, map_filename))
