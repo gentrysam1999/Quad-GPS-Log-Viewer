@@ -48,6 +48,7 @@ def plot_gps_coordinates(folder_path):
             home_lat, home_lon = df['GPS'].iloc[0].split()
             home_lat = float(home_lat)
             home_lon = float(home_lon)
+            home_height = float(df['Alt(m)'].iloc[0])
             prev_row = None
             coords = []
             change_in_distances = []
@@ -85,7 +86,7 @@ def plot_gps_coordinates(folder_path):
                     change_in_distances.append(distance_diff)
                     dist_to_home = calculations.distance_calc(home_lat,
                                                               home_lon,
-                                                              0,
+                                                              home_height,
                                                               lat,
                                                               lon,
                                                               height)
@@ -95,10 +96,12 @@ def plot_gps_coordinates(folder_path):
                 small_popup_html = "Coordinate: {lat} {lon}<br>" \
                                    "Distance From Home: {dist_to_home:.2f}m<br>" \
                                    "Height: {height:.2f}m<br>" \
+                                   "Height From Home: {height_from_home:.2f}m<br>" \
                                    "Velocity: {velocity:.2f}km/h".format(lat=lat,
                                                                          lon=lon,
                                                                          dist_to_home=dist_to_home,
                                                                          height=height,
+                                                                         height_from_home=height-home_height,
                                                                          velocity=velocity * 3.6)
                 folium.CircleMarker(
                     location=[lat, lon],
@@ -126,6 +129,7 @@ def plot_gps_coordinates(folder_path):
                 avg_speed = mean(speeds)
             if heights:
                 max_height = max(heights)
+                max_height_home = max_height-home_height
             if distances_to_home:
                 max_dist_home = max(distances_to_home)
             if change_in_distances:
@@ -138,6 +142,7 @@ def plot_gps_coordinates(folder_path):
                          "Max Speed: {max_speed:.2f}km/h<br>" \
                          "Avg Speed: {avg_speed:.2f}km/h<br>" \
                          "Max Height: {max_height:.2f}m<br>" \
+                         "Max Height From Home: {max_height_home:.2f}m<br>" \
                          "Max Distance From Home: {max_dist_home:.2f}m<br>" \
                          "Total Distance Flown: {tot_dist:.2f}m<br>" \
                          "Total Flight Time: {tot_time}".format(file=filename,
@@ -145,6 +150,7 @@ def plot_gps_coordinates(folder_path):
                                                                 max_speed=max_speed,
                                                                 avg_speed=avg_speed,
                                                                 max_height=max_height,
+                                                                max_height_home=max_height_home,
                                                                 max_dist_home=max_dist_home,
                                                                 tot_dist=tot_dist,
                                                                 tot_time=tot_time)
@@ -152,8 +158,8 @@ def plot_gps_coordinates(folder_path):
             folium.Marker(
                 location=final_coord.split(),
                 popup=folium.Popup(iframe,
-                                   min_width=300,
-                                   max_width=300)
+                                   min_width=350,
+                                   max_width=350)
             ).add_to(fg)
             fg.add_to(m)
 
